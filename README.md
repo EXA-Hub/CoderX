@@ -26,7 +26,7 @@ A web platform for hosting and managing Discord bots. This platform allows users
 npm install
 ```
 
-3. Create a `.env` file with the following variables:
+3.Create a `.env` file with the following variables:
 
 ```env
 DISCORD_CLIENT_ID=your_client_id
@@ -35,13 +35,13 @@ DISCORD_CALLBACK_URL=http://localhost:3000/auth/discord/callback
 SESSION_SECRET=your_session_secret
 ```
 
-4. Build the project:
+4.Build the project:
 
 ```bash
 npm run build
 ```
 
-5. Start the development server:
+5.Start the development server:
 
 ```bash
 npm run start:dev
