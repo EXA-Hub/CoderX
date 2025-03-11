@@ -1,0 +1,13 @@
+# Ignore all files in the node_modules directory
+node_modules
+.vscode
+
+# Ignore all files in the .env directory
+.env
+.env.local
+
+# Ignore all files in the db directory
+*.db
+
+# Ignore all files in the dist directory
+dist

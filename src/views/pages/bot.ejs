@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Bot Management - Discord Bot Platform</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/editor/editor.main.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="flex justify-between items-center">
+          <h1 class="text-2xl font-bold">Bot <%= bot.id %></h1>
+          <div class="flex space-x-2">
+            <button
+              onclick="deployCommands()"
+              class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Deploy Commands
+            </button>
+            <button
+              onclick="showAddInteractionDialog()"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              Add Interaction
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Interactions List -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h2 class="text-xl font-semibold mb-4">Interactions</h2>
+          <div class="space-y-4">
+            <% bot.interactions.forEach(interaction => { %>
+            <div class="border rounded p-4">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-semibold"><%= interaction.name %></h3>
+                <div class="flex space-x-2">
+                  <button
+                    onclick="copyCode('<%= interaction.id %>')"
+                    class="text-gray-500 hover:text-gray-600"
+                  >
+                    Copy Code
+                  </button>
+                  <button
+                    onclick="deleteInteraction('<%= interaction.id %>')"
+                    class="text-red-500 hover:text-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <button
+                onclick="editInteraction('<%= JSON.stringify(interaction) %>')"
+                class="text-blue-500 hover:text-blue-600"
+              >
+                Edit Code
+              </button>
+            </div>
+            <% }) %>
+          </div>
+        </div>
+
+        <!-- Code Editor -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h2 class="text-xl font-semibold mb-4">Code Editor</h2>
+          <div id="editor" style="height: 500px; border: 1px solid #ddd"></div>
+          <div class="mt-4 flex justify-end">
+            <button
+              onclick="saveCode()"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Interaction Dialog -->
+    <div
+      id="addInteractionDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center"
+    >
+      <div class="bg-white rounded-lg p-6 w-96">
+        <h2 class="text-xl font-semibold mb-4">Add New Interaction</h2>
+        <form id="newInteractionForm" class="space-y-4">
+          <div>
+            <label for="interactionName" class="block text-sm font-medium text-gray-700">Name</label>
+            <input type="text" id="interactionName" name="name" required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+          </div>
+
+          <div>
+            <label for="interactionType" class="block text-sm font-medium text-gray-700">Type</label>
+            <select id="interactionType" name="type" required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+              <option value="SLASH_COMMAND">Slash Command</option>
+              <option value="USER_CONTEXT_MENU">User Context Menu</option>
+              <option value="MESSAGE_CONTEXT_MENU">Message Context Menu</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="interactionConfiguration" class="block text-sm font-medium text-gray-700">Configuration</label>
+            <div class="mt-1 relative">
+              <div id="configurationEditor" class="border rounded-md"></div>
+            </div>
+          </div>
+
+          <div>
+            <label for="codeEditor" class="block text-sm font-medium text-gray-700">Code</label>
+            <div class="mt-1 relative">
+              <div id="codeEditor" class="border rounded-md"></div>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="submit"
+              class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              Create Interaction
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.js"></script>
+    <script>
+      let editor;
+      let currentInteraction;
+
+      require.config({
+        paths: {
+          vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs",
+        },
+      });
+      require(["vs/editor/editor.main"], function () {
+        editor = monaco.editor.create(document.getElementById("editor"), {
+          value: "// Select an interaction to edit its code",
+          language: "javascript",
+          theme: "vs-dark",
+          minimap: { enabled: false },
+        });
+      });
+
+      function showAddInteractionDialog() {
+        document
+          .getElementById("addInteractionDialog")
+          .classList.remove("hidden");
+      }
+
+      function hideAddInteractionDialog() {
+        document.getElementById("addInteractionDialog").classList.add("hidden");
+      }
+
+      function editInteraction(interactionJson) {
+        const interaction = JSON.parse(interactionJson);
+        currentInteraction = interaction;
+        editor.setValue(
+          interaction.codeBlock || "// Write your interaction code here"
+        );
+      }
+
+      async function saveCode() {
+        if (!currentInteraction) {
+          alert("Please select an interaction first");
+          return;
+        }
+
+        const codeBlock = editor.getValue();
+        try {
+          const response = await fetch(
+            `/bot/<%= bot.id %>/interaction/${currentInteraction.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ codeBlock }),
+            }
+          );
+
+          if (response.ok) {
+            alert("Code saved successfully!");
+          } else {
+            alert("Failed to save code. Please try again.");
+          }
+        } catch (error) {
+          alert("An error occurred. Please try again.");
+        }
+      }
+
+      // Initialize the configuration editor with a template based on type
+      function updateConfigurationTemplate() {
+        const type = document.getElementById('interactionType').value;
+        let template = {};
+
+        switch (type) {
+          case 'SLASH_COMMAND':
+            template = {
+              name: document.getElementById('interactionName').value || 'command-name',
+              type: 1,
+              description: 'Command description',
+              options: []
+            };
+            break;
+          case 'USER_CONTEXT_MENU':
+            template = {
+              name: document.getElementById('interactionName').value || 'User Action',
+              type: 2
+            };
+            break;
+          case 'MESSAGE_CONTEXT_MENU':
+            template = {
+              name: document.getElementById('interactionName').value || 'Message Action',
+              type: 3
+            };
+            break;
+        }
+
+        configurationEditor.setValue(JSON.stringify(template, null, 2));
+      }
+
+      // Update configuration when type changes
+      document.getElementById('interactionType').addEventListener('change', updateConfigurationTemplate);
+      
+      // Update configuration when name changes
+      document.getElementById('interactionName').addEventListener('input', (e) => {
+        const config = JSON.parse(configurationEditor.getValue());
+        config.name = e.target.value;
+        configurationEditor.setValue(JSON.stringify(config, null, 2));
+      });
+
+      // Initialize editors and form handling
+      document.addEventListener('DOMContentLoaded', function() {
+        // ... existing editor initialization code ...
+
+        // Set initial configuration template
+        updateConfigurationTemplate();
+
+        // Form submission handling
+        document.getElementById('newInteractionForm').addEventListener('submit', async function(e) {
+          e.preventDefault();
+          
+          try {
+            const formData = {
+              name: document.getElementById('interactionName').value,
+              type: document.getElementById('interactionType').value,
+              configuration: JSON.parse(configurationEditor.getValue()),
+              codeBlock: codeEditor.getValue()
+            };
+
+            const response = await fetch(`/bot/<%= bot.id %>/interaction`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+              window.location.reload();
+            } else {
+              const data = await response.json();
+              alert(data.error || 'Failed to create interaction');
+            }
+          } catch (error) {
+            alert('Error creating interaction: ' + error.message);
+          }
+        });
+      });
+
+      async function deployCommands() {
+        try {
+          const response = await fetch(`/bot/<%= bot.id %>/deploy`, {
+            method: "POST",
+          });
+
+          if (response.ok) {
+            alert("Commands deployed successfully!");
+          } else {
+            alert("Failed to deploy commands. Please try again.");
+          }
+        } catch (error) {
+          alert("An error occurred. Please try again.");
+        }
+      }
+
+      async function deleteInteraction(interactionId) {
+        if (!confirm('Are you sure you want to delete this interaction? This action cannot be undone.')) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/bot/<%= bot.id %>/interaction/${interactionId}/delete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            window.location.reload();
+          } else {
+            alert('Failed to delete interaction. Please try again.');
+          }
+        } catch (error) {
+          alert('An error occurred. Please try again.');
+        }
+      }
+    </script>
+  </body>
+</html>

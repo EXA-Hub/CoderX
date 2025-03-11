@@ -1,0 +1,17 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "assets": [
+      {
+        "include": "views/**/*",
+        "outDir": "dist/src"
+      },
+      {
+        "include": "public/**/*",
+        "outDir": "dist/src"
+      }
+    ],
+    "watchAssets": true
+  }
+}
