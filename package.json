@@ -45,6 +45,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.3",
     "prettier": "^3.5.3",
+    "prettier-plugin-ejs": "^1.0.3",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",

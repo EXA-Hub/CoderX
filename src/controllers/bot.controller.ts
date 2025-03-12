@@ -26,7 +26,7 @@ export class BotController {
     private botRepository: Repository<Bot>,
     @InjectRepository(BotInteraction)
     private botInteractionRepository: Repository<BotInteraction>,
-    private botService: BotService
+    private botService: BotService,
   ) {}
 
   @Get(":id")
@@ -44,7 +44,7 @@ export class BotController {
   @Post("create")
   async createBot(
     @Body() data: { id: string; publicKey: string; token: string },
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     return this.botService.createBot({
       ...data,
@@ -56,7 +56,7 @@ export class BotController {
   async handleInteraction(
     @Param("id") id: string,
     @Body() body: any,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     const bot = await this.botRepository.findOne({
       where: { id },
@@ -73,7 +73,7 @@ export class BotController {
       JSON.stringify(body),
       signature as string,
       timestamp as string,
-      bot.publicKey
+      bot.publicKey,
     );
 
     if (!isValid) {
@@ -82,14 +82,14 @@ export class BotController {
 
     // Handle interaction based on type
     const interaction = bot.interactions.find(
-      (i) => i.name === body.data?.name
+      (i) => i.name === body.data?.name,
     );
     if (!interaction) {
       return { error: "Interaction not found" };
     }
 
     try {
-      return await this.botService.executeInteraction(interaction, body);
+      return await this.botService.executeInteraction(interaction);
     } catch (error) {
       return { error: "Error executing interaction code" };
     }
@@ -99,7 +99,12 @@ export class BotController {
   async createInteraction(
     @Param("id") botId: string,
     @Body()
-    data: { name: string; type: string; configuration: any; codeBlock: string }
+    data: {
+      name: string;
+      type: string;
+      configuration: any;
+      jsonResponse: string;
+    },
   ) {
     return this.botService.createInteraction(botId, data);
   }
@@ -129,7 +134,7 @@ export class BotController {
   @Post(":botId/interaction/:id/delete")
   async deleteInteraction(
     @Param("botId") botId: string,
-    @Param("id") id: string
+    @Param("id") id: string,
   ) {
     try {
       await this.botService.deleteInteraction(id);
@@ -144,17 +149,37 @@ export class BotController {
   async updateInteraction(
     @Param("botId") botId: string,
     @Param("id") id: string,
-    @Body() data: { codeBlock: string }
+    @Body() data: { jsonResponse: string },
   ) {
     try {
-      const interaction = await this.botService.updateInteractionCode(
+      const interaction = await this.botService.updateInteractionResponse(
+        botId,
         id,
-        data.codeBlock
+        JSON.parse(data.jsonResponse),
       );
       return { success: true, interaction };
     } catch (error) {
       console.error("Error updating interaction:", error);
       return { error: "Failed to update interaction" };
+    }
+  }
+
+  @Put(":botId/interaction/:id/configuration")
+  async updateInteractionConfiguration(
+    @Param("botId") botId: string,
+    @Param("id") id: string,
+    @Body() data: { configuration: any },
+  ) {
+    try {
+      const interaction = await this.botService.updateInteractionConfiguration(
+        botId,
+        id,
+        JSON.parse(data.configuration),
+      );
+      return { success: true, interaction };
+    } catch (error) {
+      console.error("Error updating interaction configuration:", error);
+      return { error: "Failed to update interaction configuration" };
     }
   }
 }

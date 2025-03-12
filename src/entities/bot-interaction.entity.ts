@@ -18,8 +18,8 @@ export class BotInteraction {
   @Column("json")
   configuration: Record<string, any>;
 
-  @Column("text")
-  codeBlock: string;
+  @Column("json")
+  jsonResponse: Record<string, any>;
 
   @ManyToOne(() => Bot, (bot) => bot.interactions)
   bot: Bot;
@@ -29,4 +29,7 @@ export class BotInteraction {
 
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  customId: string;
 }

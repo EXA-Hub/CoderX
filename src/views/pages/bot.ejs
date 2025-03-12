@@ -23,12 +23,6 @@
             >
               Deploy Commands
             </button>
-            <button
-              onclick="showAddInteractionDialog()"
-              class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Add Interaction
-            </button>
           </div>
         </div>
       </div>
@@ -57,6 +51,14 @@
                   </button>
                 </div>
               </div>
+              <% if (interaction.type === "APPLICATION_COMMAND") { %>
+              <button
+                onclick="editInteraction('<%= JSON.stringify(interaction) %>', true)"
+                class="text-blue-500 hover:text-blue-600 mb-2"
+              >
+                Edit Configuration
+              </button>
+              <% } %>
               <button
                 onclick="editInteraction('<%= JSON.stringify(interaction) %>')"
                 class="text-blue-500 hover:text-blue-600"
@@ -82,49 +84,83 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Add Interaction Dialog -->
-    <div
-      id="addInteractionDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center"
-    >
-      <div class="bg-white rounded-lg p-6 w-96">
+      <!-- Add New Interaction Form -->
+      <div class="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 class="text-xl font-semibold mb-4">Add New Interaction</h2>
         <form id="newInteractionForm" class="space-y-4">
           <div>
-            <label for="interactionName" class="block text-sm font-medium text-gray-700">Name</label>
-            <input type="text" id="interactionName" name="name" required
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            <label
+              for="interactionName"
+              class="block text-sm font-medium text-gray-700"
+              >Name</label
+            >
+            <input
+              type="text"
+              id="interactionName"
+              name="name"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
           </div>
 
           <div>
-            <label for="interactionType" class="block text-sm font-medium text-gray-700">Type</label>
-            <select id="interactionType" name="type" required
-              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-              <option value="SLASH_COMMAND">Slash Command</option>
-              <option value="USER_CONTEXT_MENU">User Context Menu</option>
-              <option value="MESSAGE_CONTEXT_MENU">Message Context Menu</option>
+            <label
+              for="interactionType"
+              class="block text-sm font-medium text-gray-700"
+              >Type</label
+            >
+            <select
+              id="interactionType"
+              name="type"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option disabled selected value="">
+                Select Interaction Type
+              </option>
+              <option disabled value="PING">Ping</option>
+              <option value="APPLICATION_COMMAND">Application Command</option>
+              <option value="MESSAGE_COMPONENT">Message Component</option>
+              <option disabled value="APPLICATION_COMMAND_AUTOCOMPLETE">
+                Application Command Autocomplete
+              </option>
+              <option value="MODAL_SUBMIT">Modal Submit</option>
             </select>
           </div>
 
-          <div>
-            <label for="interactionConfiguration" class="block text-sm font-medium text-gray-700">Configuration</label>
-            <div class="mt-1 relative">
-              <div id="configurationEditor" class="border rounded-md"></div>
-            </div>
+          <div id="jsonFormatSection" class="hidden">
+            <label
+              for="interactionConfiguration"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Configuration (JSON)
+            </label>
+            <textarea
+              id="configurationEditor"
+              class="mt-1 block w-full h-64 p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            ></textarea>
           </div>
 
-          <div>
-            <label for="codeEditor" class="block text-sm font-medium text-gray-700">Code</label>
-            <div class="mt-1 relative">
-              <div id="codeEditor" class="border rounded-md"></div>
-            </div>
+          <div id="customIdSection" class="hidden">
+            <label
+              for="customId"
+              class="block text-sm font-medium text-gray-700"
+              >Custom ID</label
+            >
+            <input
+              type="text"
+              id="customId"
+              name="customId"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
           </div>
 
           <div class="flex justify-end">
-            <button type="submit"
-              class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            <button
+              type="submit"
+              class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
               Create Interaction
             </button>
           </div>
@@ -136,6 +172,7 @@
     <script>
       let editor;
       let currentInteraction;
+      let shouldSaveConfiguration = false;
 
       require.config({
         paths: {
@@ -144,38 +181,47 @@
       });
       require(["vs/editor/editor.main"], function () {
         editor = monaco.editor.create(document.getElementById("editor"), {
-          value: "// Select an interaction to edit its code",
-          language: "javascript",
-          theme: "vs-dark",
+          value: "{}",
+          language: "json",
+          theme: "vs-light",
           minimap: { enabled: false },
         });
+
+        // Initialize jsonResponseEditor
+        window.jsonResponseEditor = monaco.editor.create(
+          document.getElementById("jsonResponseEditor"),
+          {
+            value: "{}",
+            language: "json",
+            theme: "vs-light",
+            minimap: { enabled: false },
+          },
+        );
       });
 
-      function showAddInteractionDialog() {
-        document
-          .getElementById("addInteractionDialog")
-          .classList.remove("hidden");
-      }
-
-      function hideAddInteractionDialog() {
-        document.getElementById("addInteractionDialog").classList.add("hidden");
-      }
-
-      function editInteraction(interactionJson) {
+      function editInteraction(interactionJson, isConfiguration = false) {
         const interaction = JSON.parse(interactionJson);
         currentInteraction = interaction;
-        editor.setValue(
-          interaction.codeBlock || "// Write your interaction code here"
-        );
+        shouldSaveConfiguration = isConfiguration;
+        if (isConfiguration) {
+          editor.setValue(JSON.stringify(interaction.configuration, null, 2));
+        } else {
+          editor.setValue(JSON.stringify(interaction.jsonResponse, null, 2));
+        }
       }
 
       async function saveCode() {
+        if (shouldSaveConfiguration) {
+          await saveConfiguration();
+          return;
+        }
+
         if (!currentInteraction) {
           alert("Please select an interaction first");
           return;
         }
 
-        const codeBlock = editor.getValue();
+        const jsonResponse = editor.getValue();
         try {
           const response = await fetch(
             `/bot/<%= bot.id %>/interaction/${currentInteraction.id}`,
@@ -184,8 +230,8 @@
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ codeBlock }),
-            }
+              body: JSON.stringify({ jsonResponse }),
+            },
           );
 
           if (response.ok) {
@@ -198,84 +244,99 @@
         }
       }
 
-      // Initialize the configuration editor with a template based on type
-      function updateConfigurationTemplate() {
-        const type = document.getElementById('interactionType').value;
-        let template = {};
+      async function saveConfiguration() {
+        const configuration = editor.getValue();
+        try {
+          const response = await fetch(
+            `/bot/<%= bot.id %>/interaction/${currentInteraction.id}/configuration`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ configuration }),
+            },
+          );
 
-        switch (type) {
-          case 'SLASH_COMMAND':
-            template = {
-              name: document.getElementById('interactionName').value || 'command-name',
-              type: 1,
-              description: 'Command description',
-              options: []
-            };
-            break;
-          case 'USER_CONTEXT_MENU':
-            template = {
-              name: document.getElementById('interactionName').value || 'User Action',
-              type: 2
-            };
-            break;
-          case 'MESSAGE_CONTEXT_MENU':
-            template = {
-              name: document.getElementById('interactionName').value || 'Message Action',
-              type: 3
-            };
-            break;
+          if (response.ok) {
+            alert("Configuration saved successfully!");
+          } else {
+            alert("Failed to save configuration. Please try again.");
+          }
+        } catch (error) {
+          alert("An error occurred. Please try again.");
         }
-
-        configurationEditor.setValue(JSON.stringify(template, null, 2));
       }
 
-      // Update configuration when type changes
-      document.getElementById('interactionType').addEventListener('change', updateConfigurationTemplate);
-      
-      // Update configuration when name changes
-      document.getElementById('interactionName').addEventListener('input', (e) => {
-        const config = JSON.parse(configurationEditor.getValue());
-        config.name = e.target.value;
-        configurationEditor.setValue(JSON.stringify(config, null, 2));
-      });
+      // Show/hide fields based on interaction type
+      function updateInteractionFields() {
+        const type = document.getElementById("interactionType").value;
+        const jsonFormatSection = document.getElementById("jsonFormatSection");
+        const customIdSection = document.getElementById("customIdSection");
+
+        if (type === "APPLICATION_COMMAND") {
+          jsonFormatSection.classList.remove("hidden");
+          customIdSection.classList.add("hidden");
+        } else if (type === "MESSAGE_COMPONENT" || type === "MODAL_SUBMIT") {
+          jsonFormatSection.classList.add("hidden");
+          customIdSection.classList.remove("hidden");
+        } else {
+          jsonFormatSection.classList.add("hidden");
+          customIdSection.classList.add("hidden");
+        }
+      }
+
+      // Update fields when type changes
+      document
+        .getElementById("interactionType")
+        .addEventListener("change", updateInteractionFields);
 
       // Initialize editors and form handling
-      document.addEventListener('DOMContentLoaded', function() {
-        // ... existing editor initialization code ...
-
-        // Set initial configuration template
-        updateConfigurationTemplate();
+      document.addEventListener("DOMContentLoaded", function () {
+        // Set initial field visibility
+        updateInteractionFields();
 
         // Form submission handling
-        document.getElementById('newInteractionForm').addEventListener('submit', async function(e) {
-          e.preventDefault();
-          
-          try {
-            const formData = {
-              name: document.getElementById('interactionName').value,
-              type: document.getElementById('interactionType').value,
-              configuration: JSON.parse(configurationEditor.getValue()),
-              codeBlock: codeEditor.getValue()
-            };
+        document
+          .getElementById("newInteractionForm")
+          .addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const type = document.getElementById("interactionType").value;
+            try {
+              const formData = {
+                name: document.getElementById("interactionName").value,
+                type: type,
+                configuration:
+                  type === "APPLICATION_COMMAND"
+                    ? JSON.parse(
+                        document.getElementById("configurationEditor").value,
+                      )
+                    : {},
+                customId:
+                  type === "MESSAGE_COMPONENT" || type === "MODAL_SUBMIT"
+                    ? document.getElementById("customId").value
+                    : "",
+                jsonResponse: {},
+              };
 
-            const response = await fetch(`/bot/<%= bot.id %>/interaction`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(formData)
-            });
+              const response = await fetch(`/bot/<%= bot.id %>/interaction`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+              });
 
-            if (response.ok) {
-              window.location.reload();
-            } else {
-              const data = await response.json();
-              alert(data.error || 'Failed to create interaction');
+              if (response.ok) {
+                window.location.reload();
+              } else {
+                const data = await response.json();
+                alert(data.error || "Failed to create interaction");
+              }
+            } catch (error) {
+              alert("Error creating interaction: " + error.message);
             }
-          } catch (error) {
-            alert('Error creating interaction: ' + error.message);
-          }
-        });
+          });
       });
 
       async function deployCommands() {
@@ -295,25 +356,32 @@
       }
 
       async function deleteInteraction(interactionId) {
-        if (!confirm('Are you sure you want to delete this interaction? This action cannot be undone.')) {
+        if (
+          !confirm(
+            "Are you sure you want to delete this interaction? This action cannot be undone.",
+          )
+        ) {
           return;
         }
 
         try {
-          const response = await fetch(`/bot/<%= bot.id %>/interaction/${interactionId}/delete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
+          const response = await fetch(
+            `/bot/<%= bot.id %>/interaction/${interactionId}/delete`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          );
 
           if (response.ok) {
             window.location.reload();
           } else {
-            alert('Failed to delete interaction. Please try again.');
+            alert("Failed to delete interaction. Please try again.");
           }
         } catch (error) {
-          alert('An error occurred. Please try again.');
+          alert("An error occurred. Please try again.");
         }
       }
     </script>

@@ -22,7 +22,7 @@ export class InteractionController {
     @Headers("x-signature-ed25519") signature: string,
     @Headers("x-signature-timestamp") timestamp: string,
     @Body() body: any,
-    @Response() res: ExpressResponse
+    @Response() res: ExpressResponse,
   ) {
     try {
       // Get the bot to verify the request
@@ -38,7 +38,7 @@ export class InteractionController {
         bot.publicKey,
         signature,
         timestamp,
-        JSON.stringify(body)
+        JSON.stringify(body),
       );
       if (!isValid) {
         return res.status(HttpStatus.UNAUTHORIZED).json({
@@ -58,62 +58,31 @@ export class InteractionController {
         });
       }
 
-      // if slash command, find the matching interaction and execute it
+      // Determine the identifier based on interaction type
+      let interaction: BotInteraction;
       if (body.type === 2) {
-        const interaction = await this.botService.getBotInteractionById(
-          body.data.id
+        // APPLICATION_COMMAND
+        interaction = bot.interactions.find(
+          (interaction) => interaction.discordId === body.data.id,
         );
-        if (!interaction) {
-          return res.status(HttpStatus.OK).json({
-            type: 4,
-            data: { content: "This command was not found." },
-          });
-        }
-        const result = await this.botService.executeInteraction(
-          interaction,
-          body
+      } else if (body.type === 3 || body.type === 5) {
+        // MESSAGE_COMPONENT or MODAL_SUBMIT
+        interaction = bot.interactions.find(
+          (interaction) => interaction.customId === body.data.custom_id,
         );
-        return res.status(HttpStatus.OK).json(result);
+      } else if (body.type === 4) {
+        return res.status(HttpStatus.NOT_IMPLEMENTED);
       }
 
-      // if context menu, find the matching interaction and execute it
-      if (body.type === 3) {
-        const interaction = await this.botService.getBotInteraction(
-          botId,
-          body.data.name
-        );
-        if (!interaction) {
-          return res.status(HttpStatus.OK).json({
-            type: 4,
-            data: { content: "This command was not found." },
-          });
-        }
-        const result = await this.botService.executeInteraction(
-          interaction,
-          body
-        );
-        return res.status(HttpStatus.OK).json(result);
-      }
-
-      // For other interaction types, find the matching interaction and execute it
-      const interaction = await this.botService.getBotInteraction(
-        botId,
-        body.data?.name
-      );
       if (!interaction) {
         return res.status(HttpStatus.OK).json({
           type: 4,
-          data: {
-            content:
-              "This command was not found. Please check if it's properly configured.",
-          },
+          data: { content: "This command was not found." },
         });
       }
 
-      const result = await this.botService.executeInteraction(
-        interaction,
-        body
-      );
+      // Return the stored JSON response
+      const result = await this.botService.executeInteraction(interaction);
       return res.status(HttpStatus.OK).json(result);
     } catch (error) {
       console.error("Error handling Discord interaction:", error);
@@ -127,7 +96,7 @@ export class InteractionController {
     publicKey: string,
     signature: string,
     timestamp: string,
-    body: string
+    body: string,
   ): boolean {
     try {
       return verifyKey(body, signature, timestamp, publicKey);

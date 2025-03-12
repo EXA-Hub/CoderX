@@ -12,7 +12,7 @@ export class BotService {
     @InjectRepository(Bot)
     private botRepository: Repository<Bot>,
     @InjectRepository(BotInteraction)
-    private botInteractionRepository: Repository<BotInteraction>
+    private botInteractionRepository: Repository<BotInteraction>,
   ) {}
 
   async createBot(data: {
@@ -50,8 +50,8 @@ export class BotService {
       name: string;
       type: string;
       configuration: any;
-      codeBlock: string;
-    }
+      jsonResponse: Object;
+    },
   ) {
     const bot = await this.getBotById(botId);
     if (!bot) {
@@ -61,21 +61,32 @@ export class BotService {
     const interaction = this.botInteractionRepository.create({
       ...data,
       bot,
+      jsonResponse: data.jsonResponse,
     });
 
     return this.botInteractionRepository.save(interaction);
   }
 
-  async updateInteractionCode(interactionId: string, codeBlock: string) {
-    const interaction = await this.botInteractionRepository.findOne({
-      where: { id: interactionId },
-    });
+  async updateInteractionResponse(
+    botId: string,
+    interactionId: string,
+    jsonResponse: Record<string, any>,
+  ) {
+    const bot = await this.getBotById(botId);
+    if (!bot) {
+      throw new Error("Bot not found");
+    }
+
+    const interaction = await this.getInteractionByIdentifier(
+      botId,
+      interactionId,
+    );
 
     if (!interaction) {
       throw new Error("Interaction not found");
     }
 
-    interaction.codeBlock = codeBlock;
+    interaction.jsonResponse = jsonResponse;
     return this.botInteractionRepository.save(interaction);
   }
 
@@ -86,12 +97,7 @@ export class BotService {
     }
 
     const commands = bot.interactions
-      .filter(
-        (interaction) =>
-          interaction.type === "SLASH_COMMAND" ||
-          interaction.type === "USER_CONTEXT_MENU" ||
-          interaction.type === "MESSAGE_CONTEXT_MENU"
-      )
+      .filter((interaction) => interaction.type === "APPLICATION_COMMAND")
       .map((interaction) => interaction.configuration);
 
     const rest = new REST({ version: "10" }).setToken(bot.token);
@@ -123,18 +129,11 @@ export class BotService {
     }
   }
 
-  async executeInteraction(interaction: BotInteraction, discordData: any) {
+  async executeInteraction(interaction: BotInteraction) {
     try {
-      // Execute the interaction code
-      const code = interaction.codeBlock;
-      const context = {
-        data: discordData,
-        // Add any other context needed for the interaction
-      };
-
-      // Execute the code in a sandbox
-      const result = await this.executeCode(code, context);
-      return result;
+      // Return the stored JSON response
+      const jsonResponse = interaction.jsonResponse;
+      return jsonResponse;
     } catch (error) {
       console.error("Error executing interaction:", error);
       throw error;
@@ -176,7 +175,7 @@ export class BotService {
 
   async getBotInteraction(
     botId: string,
-    name: string
+    name: string,
   ): Promise<BotInteraction | null> {
     const bot = await this.botRepository.findOne({
       where: { id: botId },
@@ -206,6 +205,43 @@ export class BotService {
   async getBotInteractionById(id: string) {
     return this.botInteractionRepository.findOne({
       where: { id },
+    });
+  }
+
+  async getInteractionByIdentifier(
+    botId: string,
+    identifier: string,
+  ): Promise<BotInteraction | null> {
+    const bot = await this.botRepository.findOne({
+      where: { id: botId },
+      relations: ["interactions"],
+    });
+
+    if (!bot) {
+      return null;
+    }
+
+    return (
+      bot.interactions.find((interaction) => {
+        return interaction.id === identifier;
+      }) || null
+    );
+  }
+
+  async updateInteractionConfiguration(
+    botId: string,
+    interactionId: string,
+    configuration: any,
+  ) {
+    const interaction = await this.getInteractionByIdentifier(
+      botId,
+      interactionId,
+    );
+    if (!interaction) {
+      throw new Error("Interaction not found");
+    }
+    return this.botInteractionRepository.update(interactionId, {
+      configuration,
     });
   }
 }
